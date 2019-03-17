@@ -1,3 +1,4 @@
+
 CC=gcc
 CFLAGS=-I.
 
@@ -15,3 +16,4 @@ find_min_max.o : utils.h find_min_max.h
 
 clean :
 	rm utils.o find_min_max.o sequential_min_max parallel_min_max
+all : sequential_min_max parallel_min_max

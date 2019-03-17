@@ -42,16 +42,28 @@ int main(int argc, char **argv) {
             seed = atoi(optarg);
             // your code here
             // error handling
+            if (seed <= 0) {
+                printf("seed must be a positive number\n");
+                return 1;
+              }
             break;
           case 1:
             array_size = atoi(optarg);
             // your code here
             // error handling
+             if (array_size <= 0) {
+                printf("array_size must be a positive number\n");
+                return 1;
+              }
             break;
           case 2:
             pnum = atoi(optarg);
             // your code here
             // error handling
+             if (pnum <= 0) {
+                printf("pnum must be a positive number\n");
+                return 1;
+              }
             break;
           case 3:
             with_files = true;
@@ -90,7 +102,10 @@ int main(int argc, char **argv) {
 
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
-
+ 
+    int pipefd[2];
+    pipe(pipefd);
+       int part= array_size/pnum;
   for (int i = 0; i < pnum; i++) {
     pid_t child_pid = fork();
     if (child_pid >= 0) {
@@ -98,13 +113,20 @@ int main(int argc, char **argv) {
       active_child_processes += 1;
       if (child_pid == 0) {
         // child process
-
+        struct MinMax tmp;
+        if(i!=pnum-1)
+        {
+        tmp=GetMinMax(array,i*part,(i+1)*part);
         // parallel somehow
-
+        }
+        else tmp=GetMinMax(array,i*part,array_size);
         if (with_files) {
           // use files here
+          FILE* fp = fopen("ans.txt", "a");
+          fwrite(&tmp, sizeof(struct MinMax), 1, fp);
+          fclose(fp);
         } else {
-          // use pipe here
+           write(pipefd[1],&tmp,sizeof(struct MinMax));
         }
         return 0;
       }
@@ -116,8 +138,9 @@ int main(int argc, char **argv) {
   }
 
   while (active_child_processes > 0) {
-    // your code here
-
+    close(pipefd[1]);
+    
+    wait(NULL);
     active_child_processes -= 1;
   }
 
@@ -126,17 +149,25 @@ int main(int argc, char **argv) {
   min_max.max = INT_MIN;
 
   for (int i = 0; i < pnum; i++) {
-    int min = INT_MAX;
-    int max = INT_MIN;
-
+    struct MinMax mm;
+    
     if (with_files) {
       // read from files
+       FILE* fp = fopen("ans.txt", "rb");
+        fseek(fp, i*sizeof(struct MinMax), SEEK_SET);
+        //size_t fread( void * ptrvoid, size_t size, size_t count, FILE * filestream );
+        //ptrvoid Указатель на блок памяти, размер которого должен быть минимум  (size*count) байт.
+//size Размер в байтах каждого считываемого элемента.
+//count Количество элементов, каждый из которых имеет размер size байт.
+//filestream Указатель на объект типа FILE, который связан с потоком ввода.
+        fread(&mm, sizeof(struct MinMax), 1, fp);
+        fclose(fp);
     } else {
-      // read from pipes
+        read(pipefd[0], &mm, sizeof(struct MinMax));
     }
 
-    if (min < min_max.min) min_max.min = min;
-    if (max > min_max.max) min_max.max = max;
+    if (mm.min < min_max.min) min_max.min = mm.min;
+    if (mm.max > min_max.max) min_max.max = mm.max;
   }
 
   struct timeval finish_time;
@@ -151,5 +182,6 @@ int main(int argc, char **argv) {
   printf("Max: %d\n", min_max.max);
   printf("Elapsed time: %fms\n", elapsed_time);
   fflush(NULL);
+  remove("ab.txt");
   return 0;
 }
